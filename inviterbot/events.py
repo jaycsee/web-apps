@@ -1,8 +1,11 @@
 import discord
 
-from . import util, static
-from .util import *
-from .static import *
+# from . import util, static
+# from .util import *
+# from .static import *
+
+from util import *
+from static import *
 
 class DiscordEvents:
     """A static class that contains all events that the discord module provides."""

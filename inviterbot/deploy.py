@@ -4,21 +4,17 @@ import json
 import importlib
 from typing import Any, Union, List, NoReturn, Optional
 
-from . import util, commands, events, messages, static
-from .static import *
-from .util import *
+# from . import util, commands, events, messages, static
+# from .static import *
+# from .util import *
+
+import commands, events, messages, static
+from static import *
+from util import *
 
 tokens = {}
 
-# todos
-# new commands: voice split/lock/hide/move
-# permissions (caching) -> finish infrastructure -> granular permissions
-# disable on 403
-# slash commands
-# send to mod log if mod sends a command on the server and the mod is not a custodian
-# better logging
-
-owner = "331093435282882562"
+owner = ""
 admin = set(loadJSON("custodians.json")) # type: set[str]
 context = {}
 
@@ -51,7 +47,7 @@ class Deployment(discord.Client):
     async def on_ready(self) -> None:
         """Discord event. Prepares all aspects of the bot after connect and login"""
         print(f"Successful login as {self.user}")
-        self.manager.signalRunning()
+        if self.manager: self.manager.signalRunning()
         self.prepareCommands()
         print("Initializing guilds and contexts:")
         self.guildIDs = set()
@@ -354,3 +350,7 @@ class Deployment(discord.Client):
     async def on_member_unban(self, guild, user): return await events.DiscordEvents.on_member_unban(self, guild, user)
     async def on_invite_create(self, invite): return await events.DiscordEvents.on_invite_create(self, invite)
     async def on_invite_delete(self, invite): return await events.DiscordEvents.on_invite_delete(self, invite)
+
+if __name__ == "__main__":
+    bot = Deployment(None, "token")
+    bot.deploy()

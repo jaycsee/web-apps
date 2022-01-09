@@ -3,9 +3,12 @@ from typing import Union
 import discord
 from discord.enums import MessageType
 
-from . import util, static
-from .static import *
-from .util import *
+# from . import util, static
+# from .static import *
+# from .util import *
+
+from static import *
+from util import *
 
 class RichMessageSkeleton(RichMessage):
     """Class that represents a rich message after a bot restart. It preserves the data and static event handler attributes, and fetches the content at startup."""

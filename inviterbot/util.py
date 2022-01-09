@@ -6,8 +6,10 @@ import traceback
 
 from typing import Any, Optional, Union
 
-from . import static
-from .static import *
+# from . import static
+# from .static import *
+
+from static import *
 
 def loadJSON(file: str) -> dict:
     file = "discordbot/" + file

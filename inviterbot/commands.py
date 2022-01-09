@@ -2,12 +2,16 @@ import discord
 import traceback
 import random
 import subprocess
+import os
 
 from discord.embeds import Embed
 
-from . import util, static
-from .static import *
-from .util import *
+# from . import util, static
+# from .static import *
+# from .util import *
+
+from static import *
+from util import *
 
 class GeneralCommands:
     """A static class that contains all commands normally around server configuration and behaviour. Commands executed here do not necessarily mean that the user has been authenticated, and permissions must be checked during command execution. These commands may or may not have None contexts."""
@@ -63,7 +67,7 @@ class PrivilegedCommands:
 
     async def command_custodians(event: CommandEvent):
         """Manages the custodians of the bot. Target users may be given as ids or mentions (discord.User)"""
-        ret = EmbedBuilder().setColor(0xd4af37).setHeaderUser(event.bot.user).setTimeNow()
+        ret = EmbedBuilder().setColor(0xd4af37).setHeaderUser(event.bot.user).setTimeNow().setTitle("Custodians")
 
         # List the current custodians
         if event.parameters == "" or event.parameters == "list": 
@@ -73,10 +77,9 @@ class PrivilegedCommands:
 
         # Check the subcommand and if the user is authorized
         parameters = event.parameters.split(" ")
-        if not (parameters[0] == "add" or parameters[0] == "remove"): return "Unknown subcommand"
-        if not event.bot.isBotOwner(event.message.author): return "Only the bot owner may add or remove custodians"
-        if len(parameters) == 1: return "Specify users to add or remove as a custodian"
-        ret.setTitle("Custodians")
+        if not (parameters[0] == "add" or parameters[0] == "remove"): return ret.setColor(0xff0000).setDescription("Unknown subcommand").build()
+        if not event.bot.isBotOwner(event.message.author): return ret.setColor(0xff0000).setDescription("Only the bot owner may add or remove custodians").build()
+        if len(parameters) == 1: return ret.setColor(0xff0000).setDescription("Specify users to add or remove as a custodian").build()
 
         # Parse the target users
         desc = []
@@ -169,8 +172,8 @@ class PrivilegedCommands:
     async def command_update(event: CommandEvent):
         """Fetches and update for the discord bot."""
         x = subprocess.run("git pull", capture_output=True, shell=True)
-        if "Already up to date" not in x.stdout.decode("utf-8"): return "Fetched an update for this bot. Use `reload {module}` or `restart` to apply the update."
-        return "No update was found for this bot."
+        if "Already up to date" not in x.stdout.decode("utf-8"): return "Fetched an update. Use `reload {module}` or `restart` to apply the update."
+        return "No update was found."
 
     async def command_reload(event: CommandEvent):
         """Reloads all or parts of the discord bot."""
@@ -193,3 +196,39 @@ class PrivilegedCommands:
         """Shuts down the bot"""
         await event.sendResponse("Shutting down the bot.")
         await event.bot.shutdown()
+
+    async def command_deployments(event: CommandEvent):
+        """Manages the current deployments"""
+        parameters = [x.lower() for x in event.parameters.strip().split(" ", 1)]
+        ret = EmbedBuilder().setColor(0x00ff00).setHeaderUser(event.user).setTimeNow().setTitle("Deployments")
+        if len(parameters) == 0: return ret.setColor(0xff0000).setDescription("Use `start`, `restart`, `stop`, or `list` to manage deployments.").build()
+        if parameters[0] == "start" or parameters[0] == "stop" or parameters[0] == "restart":
+            response = None
+            deploymentModule = ""
+            deploymentID = ""
+            if parameters[0] == "start":
+                if len(parameters) < 2: return ret.setColor(0xff0000).setDescription(f"Specify a deployment module to {parameters[0]}").build()
+                response = await event.bot.manager.sendDeploymentCommand("start",parameters[1]).getResponse()
+                deploymentModule = parameters[1]
+                deploymentID = response.arguments
+            else:
+                if len(parameters) < 2: return ret.setColor(0xff0000).setDescription(f"Specify a deployment ID to {parameters[0]}").build()
+                currentDeployments = eval((await event.bot.manager.sendDeploymentCommand("list","").getResponse()).arguments)
+                if parameters[1] not in currentDeployments: return ret.setDescription(f"`{parameters[1]}` is not a valid deployment ID.").build()
+                response = await event.bot.manager.sendDeploymentCommand(parameters[0], parameters[1]).getResponse()
+                if parameters[0] == "restart": response = await event.bot.manager.sendDeploymentCommand("stop", parameters[1]).getResponse()
+                deploymentModule = currentDeployments[parameters[1]]
+                deploymentID = parameters[1]
+            if response.command == "OK": ret.setDescription(f"Successfully {parameters[0]}ed deployment `{deploymentID}` (`{deploymentModule}`)")
+            else: ret.setColor(0xffff00).setDescription(f"Got `{response.command}` trying to {parameters[0]} deployment `{deploymentID}` (`{deploymentModule}`)")
+        elif parameters[0] == "list":
+            currentDeployments = eval((await event.bot.manager.sendDeploymentCommand("list","").getResponse()).arguments)
+            ret.setTitle("Current Deployments")
+            desc = ""
+            for deployment in currentDeployments:
+                desc += f"\n - `{deployment}`: `{currentDeployments[deployment]}`"
+            ret.setDescription(desc.lstrip("\n"))
+        elif parameters[0] == "query": ret.setTitle("Detected Deployment Modules").setDescription("\n".join([f" - `{x[2:]}`" for x in [f.path for f in os.scandir(".") if f.is_dir()] if os.path.exists(x+'/deploy.py')]))
+        else: ret.setColor(0xff0000).setDescription("Unknown subcommand. Use `start`, `restart`, `stop`, or `list` to manage deployments.")
+        return ret.build()
+            
